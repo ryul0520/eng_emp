@@ -78,32 +78,32 @@
         .quiz-area {
             margin-top: 20px;
         }
+        
+        /* 🌟 문장 스타일 */
         .sentence {
-            font-size: 1.35rem;
-            line-height: 2.3;
+            font-size: 1.2rem;
+            line-height: 2.2;
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 1px dashed #dee2e6;
             word-break: keep-all;
         }
         
-        /* 🌟 터치형 빈칸 스타일 */
+        /* 🌟 터치형 빈칸 스타일 (크기 조정) */
         .blank-word {
             display: inline-block;
             background-color: #e9ecef;
-            border-bottom: 3px solid #adb5bd;
+            border-bottom: 2px solid #adb5bd;
             color: transparent;
             cursor: pointer;
-            margin: 0 6px;
-            padding: 0 8px;
+            margin: 0 3px;
+            padding: 0 4px;
             text-align: center;
-            border-radius: 6px;
+            border-radius: 4px;
             transition: all 0.2s ease-in-out;
-            vertical-align: bottom;
-            min-height: 1.8rem;
-            box-sizing: border-box;
+            vertical-align: baseline; /* 글자 줄맞춤 */
             user-select: none;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.15rem; /* 주변 글씨보다 살짝만 작거나 같게 */
         }
         .blank-word:hover {
             background-color: #dee2e6;
@@ -111,18 +111,17 @@
         }
         /* 🌟 정답이 공개된 상태 */
         .blank-word.revealed {
-            background-color: #ebfbee;
+            background-color: transparent; /* 배경색 빼서 더 자연스럽게 */
             border-bottom-color: #40c057;
             color: #2b8a3e;
-            font-weight: 800;
-            box-shadow: none;
+            font-weight: 700; /* 너무 굵지 않게 조절 */
         }
 
         @media (max-width: 600px) {
             .controls { flex-direction: column; }
             button, select { width: 100%; }
-            .sentence { font-size: 1.15rem; line-height: 2.1; }
-            .blank-word { padding: 0 5px; margin: 0 3px; min-height: 1.5rem; }
+            .sentence { font-size: 1.1rem; line-height: 2; }
+            .blank-word { font-size: 1.05rem; padding: 0 2px; }
         }
     </style>
 </head>
@@ -149,7 +148,6 @@
 </div>
 
 <script>
-    // 원본 데이터 (한글 포함)
     const textDB = {
         "lesson3_main": `
 Do you think you would be happy being a child prodigy, someone who is truly gifted in something at a very young age?
@@ -451,9 +449,8 @@ Only then will we truly have the power over our thoughts that Descartes believed
         `
     };
 
-    let isAllRevealed = false; // "정답 모두 보기" 토글 상태 변수
+    let isAllRevealed = false; 
 
-    // 한국어 해석 제거하고 순수 영어 문장만 배열로 추출하는 함수
     function extractEnglishSentences(rawText) {
         const lines = rawText.split('\n');
         const engSentences = [];
@@ -461,20 +458,15 @@ Only then will we truly have the power over our thoughts that Descartes believed
         lines.forEach(line => {
             let cleanLine = line.trim();
             if (!cleanLine) return; 
-            
-            // 한글이 포함된 줄(해석이나 제목)은 무시
             if (/[가-힣]/.test(cleanLine)) return;
-            
-            // 이름이나 짧은 제목 무시 (단어 수가 너무 적은 경우)
             if (cleanLine.split(' ').length < 3) return;
-
             engSentences.push(cleanLine);
         });
         
         return engSentences;
     }
 
-    // 빈칸 터치(클릭) 시 정답 표시 / 숨김 토글 함수
+    // 빈칸 터치 시 정답 토글
     function toggleAnswer(element) {
         if (!element.classList.contains('revealed')) {
             element.innerText = element.dataset.answer;
@@ -485,7 +477,7 @@ Only then will we truly have the power over our thoughts that Descartes believed
         }
     }
 
-    // 문장에 랜덤으로 빈칸을 뚫어 HTML로 반환하는 함수
+    // 빈칸 문장 생성 (width를 min-width로 변경하여 밀림 방지)
     function createBlankedSentence(sentence) {
         const wordRegex = /[a-zA-Z\-']+/g;
         const wordsMatch = sentence.match(wordRegex);
@@ -507,9 +499,9 @@ Only then will we truly have the power over our thoughts that Descartes believed
         const htmlSentence = sentence.replace(wordRegex, function(match) {
             if (blankIndices.includes(wordIndex)) {
                 wordIndex++;
-                // 단어 길이에 맞춰 자연스럽게 너비를 잡아줌 (글자수 * 약 12px)
-                let widthStr = Math.max(match.length * 12, 40) + 'px';
-                return `<span class="blank-word" data-answer="${match}" style="width:${widthStr};" onclick="toggleAnswer(this)"></span>`;
+                // 고정 width 대신 min-width를 줘서 자연스럽게 늘어나게 함
+                let widthStr = Math.max(match.length * 10, 30) + 'px';
+                return `<span class="blank-word" data-answer="${match}" style="min-width:${widthStr};" onclick="toggleAnswer(this)"></span>`;
             } else {
                 wordIndex++;
                 return match;
@@ -519,7 +511,6 @@ Only then will we truly have the power over our thoughts that Descartes believed
         return `<div class="sentence">${htmlSentence}</div>`;
     }
 
-    // 화면에 퀴즈 생성
     function generateQuiz() {
         const selectedLesson = document.getElementById('lesson-select').value;
         const rawText = textDB[selectedLesson];
@@ -528,7 +519,6 @@ Only then will we truly have the power over our thoughts that Descartes believed
         
         container.innerHTML = ''; 
         
-        // 지문을 바꾸거나 다시 구멍을 뚫으면 "정답 모두 보기" 상태 초기화
         isAllRevealed = false;
         const toggleBtn = document.getElementById('toggle-answers-btn');
         toggleBtn.innerText = "👀 정답 모두 보기";
@@ -539,7 +529,6 @@ Only then will we truly have the power over our thoughts that Descartes believed
         });
     }
 
-    // 모든 정답 한 번에 켜고 끄기
     function toggleAllAnswers() {
         const blanks = document.querySelectorAll('.blank-word');
         const toggleBtn = document.getElementById('toggle-answers-btn');
@@ -563,7 +552,6 @@ Only then will we truly have the power over our thoughts that Descartes believed
         }
     }
 
-    // 페이지 로드 시 바로 첫 번째 지문 퀴즈 생성
     window.onload = generateQuiz;
 </script>
 
