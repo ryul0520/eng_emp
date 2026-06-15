@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>랜덤 빈칸 채우기 (터치 확인형)</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            color: #343a40;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .guide {
+            text-align: center;
+            color: #868e96;
+            margin-bottom: 30px;
+            font-size: 1.05rem;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        select, button {
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            outline: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        select {
+            flex: 1;
+            background-color: #f1f3f5;
+        }
+        button {
+            transition: all 0.2s;
+        }
+        button:hover {
+            filter: brightness(0.95);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .btn-generate {
+            background-color: #339af0;
+            color: white;
+            border-color: #339af0;
+        }
+        .btn-toggle {
+            background-color: #fa5252;
+            color: white;
+            border-color: #fa5252;
+            min-width: 200px;
+        }
+        .btn-toggle.hide-mode {
+            background-color: #868e96;
+            border-color: #868e96;
+        }
+        
+        .quiz-area {
+            margin-top: 20px;
+        }
+        .sentence {
+            font-size: 1.35rem;
+            line-height: 2.3;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #dee2e6;
+            word-break: keep-all;
+        }
+        
+        /* 🌟 터치형 빈칸 스타일 */
+        .blank-word {
+            display: inline-block;
+            background-color: #e9ecef;
+            border-bottom: 3px solid #adb5bd;
+            color: transparent;
+            cursor: pointer;
+            margin: 0 6px;
+            padding: 0 8px;
+            text-align: center;
+            border-radius: 6px;
+            transition: all 0.2s ease-in-out;
+            vertical-align: bottom;
+            min-height: 1.8rem;
+            box-sizing: border-box;
+            user-select: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .blank-word:hover {
+            background-color: #dee2e6;
+            border-bottom-color: #868e96;
+        }
+        /* 🌟 정답이 공개된 상태 */
+        .blank-word.revealed {
+            background-color: #ebfbee;
+            border-bottom-color: #40c057;
+            color: #2b8a3e;
+            font-weight: 800;
+            box-shadow: none;
+        }
+
+        @media (max-width: 600px) {
+            .controls { flex-direction: column; }
+            button, select { width: 100%; }
+            .sentence { font-size: 1.15rem; line-height: 2.1; }
+            .blank-word { padding: 0 5px; margin: 0 3px; min-height: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📝 터치형 빈칸 채우기 테스트</h1>
+    <div class="guide">👆 회색 빈칸을 터치하면 정답이 나타나고, 다시 누르면 숨겨집니다.</div>
+    
+    <div class="controls">
+        <select id="lesson-select" onchange="generateQuiz()">
+            <option value="lesson3_main">📖 3과 본문 (Child Prodigies)</option>
+            <option value="lesson3_extra">📑 3과 추가지문 (Neuroplasticity)</option>
+            <option value="lesson4_main">📖 4과 본문 (Decision Making)</option>
+        </select>
+        <button class="btn-generate" onclick="generateQuiz()">🎲 랜덤 구멍 뚫기</button>
+    </div>
+
+    <div id="quiz-container" class="quiz-area"></div>
+
+    <div class="controls" style="margin-top: 30px; justify-content: center;">
+        <button id="toggle-answers-btn" class="btn-toggle" onclick="toggleAllAnswers()">👀 정답 모두 보기</button>
+    </div>
+</div>
+
+<script>
+    // 원본 데이터 (한글 포함)
+    const textDB = {
+        "lesson3_main": `
+Do you think you would be happy being a child prodigy, someone who is truly gifted in something at a very young age?
+여러분은 매우 어린 나이에 무언가에 매우 재능이 있는 사람인 신동이 되면 행복할 것이라고 생각하는가?
+Maybe you would, and maybe you wouldn't.
+아마도 여러분은 그럴 수도 있고 그렇지 않을 수도 있을 것이다.
+However, we live in a society that generally accepts the idea that giftedness leads to success, and success guarantees a life full of happiness.
+그러나 우리는 영재성이 성공으로 이끌며, 성공이 행복으로 가득 찬 삶을 보장한다는 생각을 일반적으로 받아들이는 사회에서 살고 있다.
+Does giftedness guarantee future success?
+영재성이 미래의 성공을 보장하는가?
+There are two ways to answer this question.
+이 질문에 대답하는 두 가지 방법이 있다.
+One is simply to track the achievements of precocious kids.
+하나는 단순하게 조숙한 아이들의 업적을 추적하는 것이다.
+There is a mid-1980s study of adults who attended New York City's highly regarded Hunter College Elementary School, which was founded in the 1920s as a training ground for America's future intellectual elite and only admitted children with an IQ of 155 or above.
+뉴욕시에서 매우 높이 평가되던 Hunter College 부속 초등학교에 다녔던 성인들을 대상으로 한 1980년대 중반의 한 연구가 있는데, 이 학교는 미국의 미래 지성인을 위한 양성소로써 1920년대에 설립되어 아이큐 155 이상의 아이들만 입학을 허락했던 곳이다.
+Yet the fate of the Hunter College child geniuses in the study was not greatness; it was simply being okay.
+그러나 이 연구에서 Hunter College 신동들의 운명은 그리 대단하지 않았다. 그저 괜찮았을 뿐이었다.
+Thirty years down the road, the Hunter graduates were all doing pretty well and were reasonably well adjusted and happy.
+30년 후에 Hunter 졸업생들은 모두 꽤 잘하고 있었고 상당히 잘 적응하고 행복했다.
+Most of them had good jobs and many had advanced degrees.
+그들 대부분은 좋은 직장을 얻었고 고급 학위를 받았다.
+But surprisingly, none of the Hunter graduates became CEOs of world-famous corporations, prominent politicians, well-known writers, or Nobel Prize winners; there were no people who were nationally known in their fields.
+그러나 놀랍게도, Hunter 졸업생 중 어느 누구도 세계적으로 유명한 기업의 최고 경영자, 저명한 정치인, 유명한 작가, 또는 노벨상 수상자가 되지 못했다. 즉, 자신의 분야에서 전국적으로 알려진 사람이 없었다.
+They were genius kids, but they were not genius adults.
+그들은 천재 어린이였으나 천재 성인은 아니었다.
+A similar pattern emerged in Ontario, Canada, in the 1970s.
+유사한 양상이 캐나다의 온타리오에서 1970년대에 나타났다.
+There was an elementary school with a team of elite runners.
+뛰어난 달리기 선수 팀이 있는 초등학교가 있었다.
+At that time, there were 15 nationally-ranked runners who were 13 and 14 years old.
+그 당시 13~14세인 전국적으로 상위권에 드는 달리기 선수들이 15명 있었다.
+According to research done ten years later, only one runner from that group became a top runner at the age of 24.
+10년 후의 연구에 따르면, 그 집단 출신 선수 단 한 명만이 24살에 최고의 달리기 선수가 되었다.
+In fact, the number-one runner at the age of 24 was someone known as a poor runner when he was young, Doug Consiglio.
+사실 24살의 최고 달리기 선수는 어렸을 때 실력 없는 달리기 선수로 알려진 Doug Consiglio였다.
+Doug was thought to be an awkward kid.
+Doug는 서툰 아이로 여겨졌다.
+When he was 14, all the other kids asked, "Why does he even bother?"
+그가 14살이었을 때 다른 모든 아이들은 '왜 그가 저렇게 애를 쓸까?'라고 물었다.
+Another way to look at precocity is to work backwards — to look at adult geniuses and see what they were like as kids.
+조숙함을 살펴보는 또 다른 방법은 거꾸로 거슬러 가 보는 것, 즉 성인 천재를 살펴보고 그들이 아이였을 때 어땠는지 보는 것이다.
+A number of studies have taken this approach, and they found a similar pattern.
+많은 연구들이 이 접근법을 택했고 유사한 양상을 발견했다.
+A study of 200 highly accomplished adults found that just 34 percent had been considered precocious as children.
+매우 뛰어난 200명의 성인을 대상으로 한 연구에 따르면 단지 34 퍼센트만이 어렸을 때 조숙한 것으로 여겨졌다고 한다.
+There is also a long list of historical geniuses who were quite ordinary as children; the list includes Copernicus, Rembrandt, Bach, Newton, Beethoven, Kant, and Leonardo da Vinci.
+어렸을 때 평범했던 역사적인 천재들도 많이 있다. 그 중에는 Copernicus, Rembrandt, Bach, Newton, Beethoven, Kant, and Leonardo da Vinci가 포함된다.
+None of these geniuses would have made it into Hunter College Elementary School.
+이 천재들 중 어느 누구도 Hunter College 부속 초등학교에 들어가지 못했을 것이다.
+As you can see from these studies, precocity is a trickier subject than people may ordinarily think.
+이런 연구들을 통해 알 수 있듯이 조숙함은 사람들이 흔히 생각하는 것보다 더 까다로운 주제이다.
+The benefits of earlier mastery are often overestimated.
+조기에 숙달하는 것의 이점이 종종 과대평가된다.
+There are many people who either started out good and went bad or started bad and ended up good.
+훌륭하게 시작했다가 형편없이 되는 사람들도 있고, 별 볼일 없이 시작했다가 결국 잘 된 사람들도 많다.
+Early acquisition of skills — which is often what we mean by precocity — may be a misleading indicator of later success.
+종종 우리가 '조숙함'의 의미라고 생각하는 기술의 조기 습득은 훗날의 성공의 잘못된 지표일 수 있다.
+When we call a child precocious, we have a very inaccurate definition of what we mean.
+어떤 아이를 조숙하다고 할 때 우리는 우리가 의미하는 것에 대해 매우 부정확한 정의를 내리고 있다.
+Generally, what we mean is that a person has an unusual level of intellectual or physical ability for his or her age.
+일반적으로 우리가 의미하는 것은 어떤 사람이 나이에 비해 특별한 수준의 지적 또는 신체적 능력을 가지고 있다는 것이다.
+Adult success has a lot to do with more than that.
+성인의 성공은 그것보다 더 많은 것과 관련이 있다.
+In our obsession with precocity, we are exaggerating the importance of being talented.
+조숙함에 대한 집착에서 우리는 (타고난) 재능이 있다는 것의 중요성을 과장하고 있다.
+Rather, deliberate practice toward a goal is much more important than natural-born ability.
+오히려 목표를 향한 계획적인 연습이 타고난 능력보다 훨씬 더 중요하다.
+For example, when we say that a great musician is naturally gifted, does that tell us that he or she practices a lot, wants to practice a lot, or likes to practice a lot?
+예를 들면, 우리가 훌륭한 음악가가 천부적인 재능이 있다고 말할 때, 그것이 우리에게 그 사람이 연습을 많이 하는지, 연습을 많이 하길 원하는지, 또는 연습을 많이 하길 좋아하는지를 알려주는가?
+People often cite Wolfgang Amadeus Mozart as a child prodigy, someone who acquired his musical skills very early.
+사람들은 종종 Wolfgang Amadeus Mozart를 신동, 즉 음악적 기술을 매우 일찍 습득한 사람으로 언급한다.
+He started to compose music at the age of four.
+그는 4세의 나이에 음악 작곡을 시작했다.
+By six, he traveled around Europe giving special performances with his father, Leopold.
+6살에 그는 아버지 Leopold와 함께 특별 공연을 하면서 유럽 전역을 돌아다녔다.
+He is, therefore, the perfect example of a precocious child.
+따라서 그는 조숙한 아이의 완벽한 예이다.
+However, there are faults in the Mozart myth.
+그러나 Mozart 신화에는 오류가 있다.
+First of all, the music he composed at four isn't any good.
+우선 그가 4세에 작곡한 음악은 그다지 훌륭하지 않다.
+His childhood works are basically arrangements of works by other composers.
+그의 어린 시절 작품은 실은 다른 작곡가 작품의 편곡이었다.
+Also, rather suspiciously, they were written down by his father.
+또한 그것들이 그의 아버지에 의해 쓰였음이 꽤 의심된다.
+Leopold was the 18th-century version of a modern day parent who goes all out to make his or her child a star.
+Leopold는 자신의 자녀를 스타로 만들기 위해 전력을 다하는 현대 부모의 18세기 버전이었다.
+Indeed Wolfgang's legendary precocity was exaggerated somewhat by his father's probable lying about his age.
+사실 Wolfgang의 전설적인 조숙함은 Mozart의 나이에 대한 아버지의 가능성 있는 거짓말에 의해 다소 과장되었다.
+Young Mozart's incredible musical ability might better be attributed to practice, practice, practice.
+어린 Mozart의 놀라운 음악적 능력은 이보다는 연습, 연습, 연습에 기인한 것일지도 모른다.
+Compelled to practice three hours a day from age three on, by age six, the young Wolfgang had practiced an astonishing 3,500 hours — three times more than anybody else in his peer group.
+3살부터 하루에 세 시간씩 연습해야만 했기 때문에 어린 Wolfgang은 6세가 되었을 때 3,500 시간이라는 믿기 힘든 시간을 연습했는데, 이 시간은 또래 집단에 있는 다른 누구보다 세 배 더 많은 시간이었다.
+Mozart's famous precocity as a musician was not so much natural musical ability as his ability to work hard, his circumstances, and a father that pushed him to do so.
+Mozart의 음악가로서의 잘 알려진 조숙함은 천부적인 음악적 재능이라기보다는 열심히 하는 그의 능력, 그의 상황, 그리고 그렇게 하도록 밀어붙인 아버지 때문이었다.
+A better example for what precocity really is may be the famous intellectual late-bloomer, Einstein.
+조숙함이 진정으로 무엇인지에 관한 더 좋은 예는 아마도 지적으로 늦게 꽃핀 사람으로 유명한 Einstein일 것이다.
+According to one biographer's description of the future physicist, Einstein displayed no remarkable native intelligence as a child.
+그 미래의 물리학자(Einstein)에 관한 한 전기 작가의 묘사에 따르면, Einstein은 어렸을 때 괄목할만한 천부적 지능을 보여주지 못했다.
+His success seems to have come from certain habits and personality traits— curiosity, resolve, and determination.
+그의 성공은 호기심, 의지, 그리고 결단력과 같은 특정한 습관과 성격적 특성에서 비롯된 것으로 보인다.
+No doubt, these traits are not particularly fascinating, but they are, perhaps, the more essential components of genius.
+의심할 여지없이 이런 특성들은 특별히 매력적인 것은 아니지만, 아마도 천재의 더 필수적인 구성 요소일 것이다.
+As seen from studies of precocity, a precocious child may not become a talented adult.
+조숙함에 관한 연구에서 본 것처럼, 조숙한 아이는 재능 있는 어른이 되지 않을 수도 있다.
+Furthermore, a talented adult may not have been a precocious child.
+게다가 재능 있는 어른이 조숙한 아이가 아니었을 수도 있다.
+Predictions from childhood about adult performance cannot be made based on relatively fixed traits such as IQ and early acquisition of skills.
+어린 시절을 통해 성인이 되었을 때의 성과를 예측하는 것은 IQ, 기술의 조기 습득과 같은 상대적으로 고정된 특성에 근거하여 예측할 수 없다.
+Instead, many of the traits that really matter in predicting adult success are variable traits like creativity, determination, and leadership.
+대신에 성인의 성공을 예측하는 데 있어 정말로 중요한 자질 중 다수는 창의성, 결단력, 그리고 리더십과 같은 가변적인 특성이다.
+Thus, if you want to know whether a 14-year-old runner will be a good runner when he or she is 24, you must simply wait ten years to find out how truly successful he or she has become.
+따라서 만약 여러분이 14세의 달리기 선수가 24세 때 훌륭한 선수가 될 것인지 알고 싶다면, 그가 정말로 성공하게 될지 알아내기 위해서는 그저 10년을 기다려야 한다.
+        `,
+        "lesson3_extra": `
+Till recently it was believed that growing new brain cells was simply impossible.
+최근까지 새로운 뇌세포가 생성되는 것은 단순히 불가능하다고 믿어졌다.
+The prevailing scientific view was that a person is born with a particular number of neurons, or brain cells, which only decrease with age.
+지배적인 과학적 견해는 사람은 특정한 수의 뉴런, 즉 뇌세포를 가지고 태어나며, 이것은 나이가 들면서 감소만 한다는 것이었다.
+In the 1970s, American researcher Michael Kaplan conducted experiments on mice.
+1970년대에 미국인 연구원 Michael Kaplan은 쥐들에게 실험을 했다.
+Some of the mice had stimulating toys in their cages; others did not.
+어떤 쥐들은 우리에 자극을 주는 장난감이 있었고 다른 쥐들은 그렇지 않았다.
+Kaplan found that the animals that were involved in cognitive tasks demonstrated increased brain cell growth and enhanced activity in their mature neurons.
+Kaplan은 인지적 과제에 참여한 동물들이 그들의 성숙한 뉴런에서 증가된 뇌세포 성장과 개선된 활동이 보이는 것을 발견했다.
+Moreover, Kaplan found that stem cells are transformed into brain cells, not the mature neurons reproducing.
+게다가 Kaplan은 성숙한 뉴런이 번식하는 것이 아니라, 줄기세포가 뇌세포로 변형되는 것을 발견했다.
+This type of stem cell remains in the human brain for life, which means that it is possible to grow new neurons at any age.
+이런 종류의 줄기세포는 인간의 뇌에 평생 남아 있게 되는데, 이는 곧 어떤 나이에도 새로운 뉴런을 만드는 것이 가능하다는 것을 의미한다.
+There are many studies that confirm the fact that even a mature brain can grow new neurons and that it can be induced to do so by performing cognitive tasks, such as learning and problem solving, or by doing other brain-enhancing activities such as meditation and exercises.
+심지어 성숙한 뇌도 새로운 뉴런을 생성할 수 있고, 학습이나 문제 해결 같은 인지적 과제를 수행하거나 명상이나 운동 같은 뇌를 활성화시키는 다른 활동들을 함으로써 그렇게 하도록 유도할 수 있다는 사실을 확인시켜주는 많은 연구가 있다.
+However, brain function is based not only on brain cells, but also on the connections between them called synapses.
+그러나 뇌의 기능은 뇌세포뿐만 아니라 시냅스라고 불리는 뇌세포 사이의 연결에도 기반을 두고 있다.
+These connections are the key to intelligence, creativity, and innovative thinking.
+이러한 연결은 지능, 창의성, 혁신적 사고의 비결이다.
+Scientists give birth to new revolutionary theories, businessmen come up with pioneering ideas, and artists create magnificent artworks because their neurons are arranged and wired in a certain way and their neural connections are stronger in particular brain regions.
+그들의 뉴런이 특정한 방식으로 배열되어 연결되어 있고 그들의 신경 연결이 특정한 뇌 영역에서 더 강하기 때문에, 과학자들은 새로운 혁명적인 이론을 만들어내고, 사업가들은 선구적인 아이디어를 생각해내고, 예술가들은 훌륭한 예술 작품을 창조한다.
+The stronger our synapses are, the better our brain works, and the more productive and creative we become.
+시냅스가 강할수록 우리의 뇌는 더 잘 작동하고, 우리는 더 생산적이고 더 창의적이게 된다.
+Here comes the concept called neuroplasticity, which is the ability of the brain to reorganize neural pathways based on new experiences.
+신경가소성이라고 불리는 개념이 있는데, 이것은 새로운 경험에 근거하여 신경 경로를 재구성하는 뇌의 능력이다.
+Dr. Matthew Bambling of the University of Queensland, Australia, believes that learning new things stimulates the brain and encourages it to rewire itself and change throughout life.
+호주 Queensland 대학의 Matthew Bambling 박사는 새로운 것을 배우는 것은 뇌를 자극해서 뇌가 평생 스스로를 재연결하고 변화하도록 장려한다고 믿는다.
+By learning new activities, our brain can develop new neural connections and thus alter its physical structure.
+새로운 활동을 배움으로써 우리의 뇌는 새로운 신경 연결을 발달시키고, 따라서 뇌의 물리적 구조를 바꿀 수 있다.
+“The brain is a remarkably flexible and dynamic organ.
+뇌는 놀랍게도 유연하고 역동적인 기관입니다.
+The old saying ‘use it or lose it’ might never be more true than for the brain,” he says.
+‘사용하지 않으면 잃는다.’라는 옛말은 뇌의 경우에 가장 잘 맞을 것이다.”라고 그는 말한다.
+        `,
+        "lesson4_main": `
+French philosopher Descartes said, "Except our own thoughts, there is nothing absolutely in our power."
+프랑스의 철학자 Descartes는 "우리의 생각을 제외하고는 우리가 완전히 지배할 수 있는 것은 없다"라고 말했다.
+But is that true?
+그런데 이 말은 진실일까?
+In the past, it was believed that human beings indeed had power over how we thought.
+과거에는 인간이 실제로 우리가 어떻게 생각하는가에 대하여 힘을 가지고 있다고 믿었다.
+According to this view, anyone could be like Sherlock Holmes.
+이 견해에 따르면, 누구나 Sherlock Holmes와 같이 될 수 있었다.
+You only had to think rationally, unaffected by biases and emotions.
+당신은 편견이나 감정에 영향을 받지 않은 채, 오직 이성적으로 생각하기만 하면 되었다.
+However, as we have discovered more and more about the brain and how it works, we have learned that this is not the case.
+하지만 우리가 뇌와 그것이 작동하는 방식에 대하여 점점 더 많은 것을 발견해 감에 따라, 우리는 이것이 실제로는 그렇지 않다는 것을 알게 되었다.
+The problem is that thinking is the work of the brain, and the human brain, as it turns out, does not like to be rational.
+문제는 사고가 뇌의 작용이고, 인간의 뇌는, 판명되기를, 이성적이기를 좋아하지 않는다는 것이다.
+In fact, it is structured in a way that it often prefers relying on a set of illogical thinking patterns instead of following reason all the time.
+사실상, 뇌는 항상 이성을 따르기 보다는 일련의 비이성적인 사고 패턴에 의존하기를 종종 선호하는 방식으로 구조화되어 있다.
+The brain's illogical thinking patterns that make unsound judgments are called cognitive bias.
+부정확한 판단을 내리게 하는 뇌의 비이성적인 사고 패턴은 인지 편향이라고 불린다.
+There are many cognitive biases, but here are some of the most well known.
+많은 인지 편향이 있지만, 여기 가장 잘 알려진 것 중 몇 가지가 있다.
+I'm convinced that my decision not to eat meat is rational and based on objective research.
+나는 고기를 먹지 않기로 한 나의 결심이 이성적이고 객관적인 연구에 기반을 둔다고 확신한다.
+It seems to me that the scientific evidence for the benefits of a vegetarian diet are numerous.
+내게는 채식주의 식단의 장점에 대한 과학적 증거가 많아 보인다.
+Studies in favor of eating meat, on the other hand, seem few and unreliable.
+반면에, 고기를 먹는 것에 우호적인 연구는 거의 없거나 신뢰할 만하지 않다.
+I do not doubt that my belief is the most reasonable one, considering all the scientific evidence.
+모든 과학적 증거를 고려하면, 나는 내 믿음이 가장 합리적이라는 것을 의심하지 않는다.
+It seems to me that the most reliable studies show that avoiding meat can be dangerous for one's health.
+내게는 가장 신뢰할 만한 연구들이 고기를 피하는 것이 건강에 위험할 수 있다는 것을 보여주는 것으로 보인다.
+The benefits of a vegetarian diet, on the other hand, are questionable at best.
+반면에, 채식주의 식단의 장점은 잘 해야 의심스러운 정도이다.
+Both Kevin and Sara are affected by the confirmation bias.
+Kevin과 Sara 두 사람 모두 확증 편향의 영향을 받고 있다.
+The confirmation bias is a type of cognitive bias that involves favoring information that confirms previously existing beliefs or biases.
+확증 편향은 기존의 믿음 혹은 편견을 확인하는 정보를 선호한다는 내용의 인지 편향의 유형이다.
+It impacts both how people gather information and how they interpret and recall it.
+그것은 사람들이 정보를 수집하는 방식과 그것을 해석하고 떠올리는 방식 모두에 영향을 준다.
+The confirmation bias makes people unconsciously seek information that matches their own opinions, just as Kevin and Sara have done.
+확증 편향은, Kevin과 Sara가 그랬던 것처럼, 사람들이 무의식적으로 그들 자신의 의견과 일치하는 정보를 찾게 한다.
+When people encounter evidence that contradicts their view, the confirmation bias helps them to interpret it in a way that supports their existing opinion or to dismiss it as unreliable.
+사람들이 그들의 의견과 모순되는 증거를 만날 때, 확증 편향은 사람들이 자신의 기존 의견을 지지하는 방식으로 그것을 해석하거나 신뢰할 수 없는 것으로 묵살하도록 돕는다.
+Thus, the confirmation bias prevents us from looking at situations objectively, leading us to make poor or faulty choices.
+따라서, 확증 편향은 우리가 상황을 객관적으로 바라보지 못하게 하여, 우리가 형편없거나 잘못된 선택을 하도록 이끈다.
+The confirmation bias can appear in many forms.
+확증 편향은 많은 형태로 나타날 수 있다.
+Racism, which is a dangerous human attribute that is essentially found in all societies, is an obvious example.
+인종주의는 모든 사회에서 본질적으로 발견되는 위험한 인간의 속성인데, 이것이 명백한 예이다.
+So are prejudices against religion, gender, social class, and ageism.
+종교, 성별, 사회적 계층에 대한 편견과 연령대에 따른 차별도 역시 그러한 예이다.
+We even become firm in our loyalty to political parties and view them simply in "us" or "them" terms.
+심지어 우리는 정당에 대한 충성도에 있어서도 확고해 져서, 단순히 "우리" 또는 "그들"이라는 용어로 정당을 바라본다.
+Thus, we become hard wired to engage in faulty thinking.
+따라서 우리는 어쩔 수 없이 잘못된 사고를 하게 된다.
+It is almost impossible to overcome the confirmation bias alone.
+확증 편향을 혼자서 극복하는 것은 거의 불가능하다.
+However, Charles Darwin came up with a golden rule to avoid falling into the trap of the confirmation bias.
+그러나 Charles Darwin은 확증 편향의 덫에 빠지지 않기 위한 황금률을 생각해 냈다.
+He always noted observations that were opposed to what he thought and made an effort to investigate them.
+그는 항상 그가 생각하는 것과 반대되는 관찰 정보에 주목하여 그것들을 살피는 노력을 기울였다.
+Paying extra attention to claims that challenge your opinions and attempting to discredit your own beliefs allow you to come to a conclusion in a more objective way.
+당신의 의견에 이의를 제기하는 주장에 특별히 주의를 기울이고 당신 자신의 믿음을 의심하려고 시도하는 것은 당신이 보다 객관적인 방식으로 결론을 내릴 수 있게 한다.
+Are you going to watch that movie that is currently number one at the box office, even though you usually dislike superhero movies?
+당신은 보통 슈퍼히어로 영화를 싫어하면서도, 현재 박스오피스 1위인 영화를 보려고 하는가?
+Is that popular brand of crispy chips also your new favorite snack, even though you usually hate oily snacks?
+보통은 기름기가 많은 간식을 싫어하면서도, 인기 있는 브랜드의 크리스피 칩이 당신도 제일 좋아하는 새로운 간식인가?
+Do you love the new hairstyle that most teenagers are wearing now, even though you thought it looked silly before?
+전에는 우스꽝스럽게 보인다고 생각했는데, 요즘 대부분의 10대들이 하고 있는 새로운 헤어스타일을 좋아하고 있나?
+If so, think again!
+만약 그렇다면, 다시 생각해 보라!
+You may be under the influence of the bandwagon effect.
+당신은 아마도 밴드왜건 효과의 영향을 받고 있을 수 대다.
+In psychology, the bandwagon effect refers to a phenomenon in which people do something primarily because other people are doing it, regardless of their own beliefs.
+심리학에서 밴드왜건 효과는 자기 자신의 신념과는 상관없이 주로 다른 사람들이 그것을 하고 있기 때문에 사람들이 어떤 일을 하는 현상을 가리킨다.
+Since human beings are social animals, the desire to conform is a part of our nature.
+인간은 사회적 동물이기 때문에 순응하려는 욕구는 우리 본성의 한 부분이다.
+Nevertheless, the bandwagon effect may have negative effects.
+그럼에도 불구하고, 밴드왜건 효과는 부정적인 영향을 미칠 수 있다.
+It may cause people to vote for an already popular political candidate without carefully examining his or her character and policies.
+그것은 사람들이 정치 후보자의 성격이나 정책을 신중하게 살피지 않고서 이미 인기 있는 정치 후보자에게 투표를 하게 할 수도 있다.
+Worse, voters may be tricked into believing a certain candidate is popular and into supporting him or her.
+심지어, 유권자들은 속아서 특정 후보자가 인기 있다고 믿게 되고 그 또는 그녀를 지지하게 될 수도 있다.
+This is how Adolf Hitler came to power early in his political career.
+이것이 Adolf Hitler가 그의 정치 경력 초기에 권력을 얻은 방법이다.
+When the Nazi party was new and unknown, he used radio broadcasts to make his party appear important and popular, and this convinced many German people to vote for the Nazis without knowing much about what the party really stood for.
+나치당이 새롭고 알려지지 않았을 때, 그는 라디오 방송을 사용하여 자신의 당이 중요하고 대중적이게 보이도록 하였으며, 이는 많은 독일인들이 그 정당이 실제로 무엇을 표방하는지에 대해 많이 알지 못한 채로 나치당원에 투표하도록 하였다.
+When Hitler and the Nazi party became popular, it was even easier to gain more and more supporters.
+Hitler와 나치당이 인기 있게 되자, 점점 더 많은 지지자들을 얻는 것은 훨씬 쉬웠다.
+People wanted to support the popular party because their friends supported the party, in spite of its horrible beliefs and actions.
+사람들은 자신의 친구들이 그 당을 지지하기 때문에, 그것의 끔찍한 신념이나 행위에도 불구하고, 그 인기 있는 당을 지지하기를 원했다.
+Doing what most people do is not always wrong.
+대부분의 사람들이 하는 것을 하는 것이 언제나 잘못된 것은 아니다.
+Sometimes products and ideas are popular because they are indeed good, and unpopular ones are avoided for good reasons.
+때때로, 제품과 아이디어들은 실제로 좋기 때문에 인기가 있고, 인기가 없는 제품과 아이디어들은 그럴만한 이유로 회피된다.
+However, this is not always the case.
+하지만, 이는 항상 그런 것만은 아니다.
+That is why it is advisable to be aware of the bandwagon effect and guard yourself against it, even if you eventually decide that "most people" are right.
+그렇기 때문에 결국 당신이 '대부분의 사람들'이 옳다고 결정한다고 하더라도, 밴드왜건 효과를 알고 그것으로부터 당신 자신을 지키는 것이 좋다.
+As Mark Twain said, "Whenever you find yourself on the side of the majority, it is time to pause and reflect."
+Mark Twain이 말했듯, "다수의 입장에 서 있는 자신을 발견할 때는 언제나 멈춰서 곰곰이 생각해 볼 때이다."
+Framing is presenting an issue, argument, or statement in a certain way so that it will influence the audience's feelings or opinions.
+프레이밍은 청중의 감정이나 의견에 영향을 주기 위해서 특정한 방식으로 문제, 주장, 진술을 제시하는 것이다.
+When such manipulation succeeds in altering the audience's decisions or judgments, it is called the framing effect.
+그러한 조작이 청중의 결정이나 판단을 성공적으로 바꿀 때, 그것은 프레이밍 효과라고 불린다.
+We encounter framing effects everywhere in our daily lives.
+우리는 일상생활 중 어디에서나 프레이밍 효과를 만난다.
+One of the areas where it is particularly useful and constantly used is business.
+그것이 특히 유용하고 지속적으로 사용되는 분야 중 하나는 비즈니스이다.
+For example, a customer may decide not to buy a gym membership that costs 500,000 won a year because it sounds too expensive.
+예를 들어, 일 일 년에 50만원인 체육관 회원권은 너무 비싸게 들리기 때문에 고객이 구입하지 않겠다는 결정을 내릴 수 있다.
+However, if the same membership is advertised as only 1,370 won a day, that same consumer may consider it cheap and eagerly purchase it.
+하지만, 만약 동일한 회원권이 하루에 1,370원이라고 광고된다면, 그 같은 고객은 그것을 싸다고 여기고 적극적으로 그것을 구매할 수 있다.
+The framing effect is also common in the mass media, where it often has a decisive impact on public opinion.
+프레이밍 효과는 또한 매스미디어에서도 흔한데, 여기에서는 그것이 종종 대중의 의견에 결정적인 영향을 끼친다.
+Consider the fact that EU migrants cost the UK government ₤408.12 per second in public expenditures and contribute ₤463.35 per second in revenue.
+EU 이민자가 영국 정부에 공공지출 면에서 초당 408.12파운드의 비용이 들게 하고, 수익 면에서 초당 463.35파운드 기여한다는 사실을 생각해 보자.
+A newspaper may have a headline saying "EU migrants cost the UK government ₤408.12 per second in public expenditures" and add the rest later in the article, which will immediately lead many readers to have a hostile attitude toward immigrants.
+한 신문에서 "EU 이민자들은 영국 정부에 초당 408.12 파운드의 비용이 들게 한다"라는 제목을 쓰고, 나머지를 기사의 뒤에 추가한다면, 이는 즉각적으로 많은 독자들이 이민자에 대하여 적대적인 태도를 가지게 할 것이다.
+Another newspaper may write "EU migrants contribute ₤463.35 per second in revenue" as a headline and put the rest later, which will generate a completely different response among its readers.
+또 다른 신문에서는 "EU 이민자들은 수익 면에서 초당 465.35 파운드 기여한다"를 기사 제목으로 쓰고 나머지 내용을 뒤에 덧붙일 수 있는데, 이는 독자들 사이에 완전히 다른 반응을 불러일으킬 것이다.
+There are several ways to prevent yourself from being influenced by the framing effect.
+당신 자신이 프레이밍 효과의 영향을 받지 않도록 하기 위한 여러 방법들이 있다.
+First, you can reframe the information in your own way.
+먼저, 당신은 정보를 당신 자신의 방식으로 재구성할 수 있다.
+For example, you can calculate how much a gym membership would cost per month or per year even though the gym owner advertises it as 1,370 won a day.
+예를 들어, 체육관 소유주가 회원권을 하루에 1,370원이라고 광고했다고 하더라도, 체육관 회원권이 한 달에, 혹은 일 년에 얼마인지를 당신이 계산할 수 있다.
+Another way is to consider options and possibilities that are not included in the information.
+또 다른 방법은 정보에 포함되지 않은 선택권들과 가능성을 생각해 보는 것이다.
+Some questions are framed in such a way that you are shown only two choices:
+어떤 질문들은 오직 두 가지 선택만을 보여주는 방식으로 짜여 있다.
+Is competition good or bad?
+경쟁은 좋은 것인가 아니면 나쁜 것인가?
+When you are faced with a question like this, it is important to remember that the effects of competition may differ according to the context.
+이와 같은 질문에 직면할 때, 경쟁의 영향은 맥락에 따라 다를 수 있다는 점을 기억하는 것이 중요하다.
+These are only a few examples of many cognitive biases.
+이들은 많은 인지 편향 중 몇 가지 예들일 뿐이다.
+Unfortunately, most of us are influenced by cognitive biases.
+불행히도, 우리 대다수는 인지 편향의 영향을 받는다.
+What makes them dangerous is that they prevent us from realizing how unreasonable and unfair ideas may be.
+그것들을 위험하게 만드는 것은 그것들이 우리로 하여금 생각들이 얼마나 비이성적이고 공정하지 못할 수 있을지를 깨닫지 못하게 막기 때문이다.
+Therefore, accepting that we are not always right or logical is the first step to fight cognitive biases.
+따라서 우리가 항상 옳거나 논리적이지는 않다는 점을 받아들이는 것이 인지 편향과 싸우는 첫 번째 단계이다.
+Once we admit that our opinions may be biased, it becomes easier to accept the information that we do not like.
+일단 우리의 의견이 편향될 수 있다는 점을 받아들이면, 우리가 좋아하지 않는 정보를 받아들이는 것이 더 쉬워진다.
+Only then will we truly have the power over our thoughts that Descartes believed we had.
+오직 그 때에야 비로소, Descartes가 우리가 가졌다고 믿었던, 우리의 생각에 대한 통제력을 진정으로 가지게 될 것이다.
+        `
+    };
+
+    let isAllRevealed = false; // "정답 모두 보기" 토글 상태 변수
+
+    // 한국어 해석 제거하고 순수 영어 문장만 배열로 추출하는 함수
+    function extractEnglishSentences(rawText) {
+        const lines = rawText.split('\n');
+        const engSentences = [];
+        
+        lines.forEach(line => {
+            let cleanLine = line.trim();
+            if (!cleanLine) return; 
+            
+            // 한글이 포함된 줄(해석이나 제목)은 무시
+            if (/[가-힣]/.test(cleanLine)) return;
+            
+            // 이름이나 짧은 제목 무시 (단어 수가 너무 적은 경우)
+            if (cleanLine.split(' ').length < 3) return;
+
+            engSentences.push(cleanLine);
+        });
+        
+        return engSentences;
+    }
+
+    // 빈칸 터치(클릭) 시 정답 표시 / 숨김 토글 함수
+    function toggleAnswer(element) {
+        if (!element.classList.contains('revealed')) {
+            element.innerText = element.dataset.answer;
+            element.classList.add('revealed');
+        } else {
+            element.innerText = '';
+            element.classList.remove('revealed');
+        }
+    }
+
+    // 문장에 랜덤으로 빈칸을 뚫어 HTML로 반환하는 함수
+    function createBlankedSentence(sentence) {
+        const wordRegex = /[a-zA-Z\-']+/g;
+        const wordsMatch = sentence.match(wordRegex);
+        
+        if (!wordsMatch) return sentence;
+
+        let maxBlanks = Math.floor(Math.random() * 2) + 2; 
+        if (wordsMatch.length <= 4) maxBlanks = 1;
+        
+        let blankIndices = [];
+        while(blankIndices.length < maxBlanks) {
+            let r = Math.floor(Math.random() * wordsMatch.length);
+            if(blankIndices.indexOf(r) === -1) {
+                blankIndices.push(r);
+            }
+        }
+
+        let wordIndex = 0;
+        const htmlSentence = sentence.replace(wordRegex, function(match) {
+            if (blankIndices.includes(wordIndex)) {
+                wordIndex++;
+                // 단어 길이에 맞춰 자연스럽게 너비를 잡아줌 (글자수 * 약 12px)
+                let widthStr = Math.max(match.length * 12, 40) + 'px';
+                return `<span class="blank-word" data-answer="${match}" style="width:${widthStr};" onclick="toggleAnswer(this)"></span>`;
+            } else {
+                wordIndex++;
+                return match;
+            }
+        });
+
+        return `<div class="sentence">${htmlSentence}</div>`;
+    }
+
+    // 화면에 퀴즈 생성
+    function generateQuiz() {
+        const selectedLesson = document.getElementById('lesson-select').value;
+        const rawText = textDB[selectedLesson];
+        const sentences = extractEnglishSentences(rawText);
+        const container = document.getElementById('quiz-container');
+        
+        container.innerHTML = ''; 
+        
+        // 지문을 바꾸거나 다시 구멍을 뚫으면 "정답 모두 보기" 상태 초기화
+        isAllRevealed = false;
+        const toggleBtn = document.getElementById('toggle-answers-btn');
+        toggleBtn.innerText = "👀 정답 모두 보기";
+        toggleBtn.classList.remove('hide-mode');
+
+        sentences.forEach(sentence => {
+            container.innerHTML += createBlankedSentence(sentence);
+        });
+    }
+
+    // 모든 정답 한 번에 켜고 끄기
+    function toggleAllAnswers() {
+        const blanks = document.querySelectorAll('.blank-word');
+        const toggleBtn = document.getElementById('toggle-answers-btn');
+
+        if (!isAllRevealed) {
+            blanks.forEach(b => {
+                b.innerText = b.dataset.answer;
+                b.classList.add('revealed');
+            });
+            toggleBtn.innerText = "🙈 정답 모두 다시 숨기기";
+            toggleBtn.classList.add('hide-mode');
+            isAllRevealed = true;
+        } else {
+            blanks.forEach(b => {
+                b.innerText = '';
+                b.classList.remove('revealed');
+            });
+            toggleBtn.innerText = "👀 정답 모두 보기";
+            toggleBtn.classList.remove('hide-mode');
+            isAllRevealed = false;
+        }
+    }
+
+    // 페이지 로드 시 바로 첫 번째 지문 퀴즈 생성
+    window.onload = generateQuiz;
+</script>
+
+</body>
+</html>
