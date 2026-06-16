@@ -63,6 +63,7 @@
             background-color: #339af0;
             color: white;
             border-color: #339af0;
+            flex: 1;
         }
         .btn-toggle {
             background-color: #fa5252;
@@ -101,9 +102,9 @@
             text-align: center;
             border-radius: 4px;
             transition: all 0.2s ease-in-out;
-            vertical-align: baseline; /* 글자 줄맞춤 */
+            vertical-align: baseline;
             user-select: none;
-            font-size: 1.15rem; /* 주변 글씨보다 살짝만 작거나 같게 */
+            font-size: 1.15rem;
         }
         .blank-word:hover {
             background-color: #dee2e6;
@@ -111,10 +112,10 @@
         }
         /* 🌟 정답이 공개된 상태 */
         .blank-word.revealed {
-            background-color: transparent; /* 배경색 빼서 더 자연스럽게 */
+            background-color: transparent;
             border-bottom-color: #40c057;
             color: #2b8a3e;
-            font-weight: 700; /* 너무 굵지 않게 조절 */
+            font-weight: 700;
         }
 
         @media (max-width: 600px) {
@@ -137,6 +138,14 @@
             <option value="lesson3_extra">📑 3과 추가지문 (Neuroplasticity)</option>
             <option value="lesson4_main">📖 4과 본문 (Decision Making)</option>
         </select>
+        
+        <!-- 🌟 난이도 선택 추가 -->
+        <select id="difficulty-select" onchange="generateQuiz()">
+            <option value="0.10">🟢 쉬움 (빈칸 10% 이내)</option>
+            <option value="0.20" selected>🟡 보통 (빈칸 20% 이내)</option>
+            <option value="0.30">🔴 어려움 (빈칸 30% 이내)</option>
+        </select>
+
         <button class="btn-generate" onclick="generateQuiz()">🎲 랜덤 구멍 뚫기</button>
     </div>
 
@@ -205,7 +214,7 @@ The benefits of earlier mastery are often overestimated.
 There are many people who either started out good and went bad or started bad and ended up good.
 훌륭하게 시작했다가 형편없이 되는 사람들도 있고, 별 볼일 없이 시작했다가 결국 잘 된 사람들도 많다.
 Early acquisition of skills — which is often what we mean by precocity — may be a misleading indicator of later success.
-종종 우리가 '조숙함'의 의미라고 생각하는 기술의 조기 습득은 훗날의 성공의 잘못된 지표일 수 있다.
+종종 우리가 '조숙함'의 의미라고 생각하는 기술의 조기 습득은 훗날의 성공의 잘못된 지표일 수 대문이다.
 When we call a child precocious, we have a very inaccurate definition of what we mean.
 어떤 아이를 조숙하다고 할 때 우리는 우리가 의미하는 것에 대해 매우 부정확한 정의를 내리고 있다.
 Generally, what we mean is that a person has an unusual level of intellectual or physical ability for his or her age.
@@ -475,7 +484,6 @@ Only then will we truly have the power over our thoughts that Descartes believed
         return engSentences;
     }
 
-    // 빈칸 터치 시 정답 토글
     function toggleAnswer(element) {
         if (!element.classList.contains('revealed')) {
             element.innerText = element.dataset.answer;
@@ -486,29 +494,38 @@ Only then will we truly have the power over our thoughts that Descartes believed
         }
     }
 
-    // 빈칸 문장 생성 (width를 min-width로 변경하여 밀림 방지)
-    function createBlankedSentence(sentence) {
+    // 🌟 4글자 이상 단어만 추출 & 난이도 비율에 따라 빈칸 수 결정
+    function createBlankedSentence(sentence, difficultyRatio) {
         const wordRegex = /[a-zA-Z\-']+/g;
         const wordsMatch = sentence.match(wordRegex);
         
         if (!wordsMatch) return sentence;
 
-        let maxBlanks = Math.floor(Math.random() * 2) + 2; 
-        if (wordsMatch.length <= 4) maxBlanks = 1;
+        let candidateIndices = [];
         
-        let blankIndices = [];
-        while(blankIndices.length < maxBlanks) {
-            let r = Math.floor(Math.random() * wordsMatch.length);
-            if(blankIndices.indexOf(r) === -1) {
-                blankIndices.push(r);
+        // 4자 이상인 단어의 인덱스만 후보로 담기
+        wordsMatch.forEach((word, index) => {
+            // 특수문자(', - 등)를 제외한 순수 알파벳 길이만 체크
+            let pureLetters = word.replace(/[^a-zA-Z]/g, '');
+            if (pureLetters.length >= 4) {
+                candidateIndices.push(index);
             }
-        }
+        });
+
+        // 빈칸 뚫을 개수 계산 (문장 전체 단어 수 * 선택한 난이도 비율)
+        // 무조건 1개 이상은 뚫리게 처리 (단, 4글자 이상 후보가 하나도 없으면 0개)
+        let targetBlankCount = Math.max(1, Math.floor(wordsMatch.length * difficultyRatio));
+        
+        // 후보 단어 섞기 (랜덤성)
+        candidateIndices.sort(() => Math.random() - 0.5);
+        
+        // 최종 결정된 빈칸 인덱스 배열
+        let blankIndices = candidateIndices.slice(0, targetBlankCount);
 
         let wordIndex = 0;
         const htmlSentence = sentence.replace(wordRegex, function(match) {
             if (blankIndices.includes(wordIndex)) {
                 wordIndex++;
-                // 고정 width 대신 min-width를 줘서 자연스럽게 늘어나게 함
                 let widthStr = Math.max(match.length * 10, 30) + 'px';
                 return `<span class="blank-word" data-answer="${match}" style="min-width:${widthStr};" onclick="toggleAnswer(this)"></span>`;
             } else {
@@ -522,6 +539,8 @@ Only then will we truly have the power over our thoughts that Descartes believed
 
     function generateQuiz() {
         const selectedLesson = document.getElementById('lesson-select').value;
+        const selectedDifficulty = parseFloat(document.getElementById('difficulty-select').value); // 🌟 난이도 값 가져오기
+        
         const rawText = textDB[selectedLesson];
         const sentences = extractEnglishSentences(rawText);
         const container = document.getElementById('quiz-container');
@@ -534,7 +553,8 @@ Only then will we truly have the power over our thoughts that Descartes believed
         toggleBtn.classList.remove('hide-mode');
 
         sentences.forEach(sentence => {
-            container.innerHTML += createBlankedSentence(sentence);
+            // 🌟 문장 생성 함수에 난이도 인자 전달
+            container.innerHTML += createBlankedSentence(sentence, selectedDifficulty);
         });
     }
 
